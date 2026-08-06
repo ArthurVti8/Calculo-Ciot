@@ -1111,12 +1111,14 @@ select option {
 .diff-table-container {
   max-height: 300px;
   overflow-y: auto;
+  overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
 
 .diff-table {
   width: 100%;
+  min-width: 850px;
   border-collapse: collapse;
   font-size: 0.78rem;
 }
@@ -1250,6 +1252,7 @@ select option {
 
 .grid-input {
   width: 95px;
+  min-width: 95px;
   background: transparent;
   border: 1px solid transparent;
   color: inherit;
