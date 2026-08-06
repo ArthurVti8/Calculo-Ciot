@@ -179,6 +179,13 @@ const server = http.createServer(async (req, res) => {
       const resolucaoAtual = "6.084/2026"; // Resolução fixa por enquanto (pode vir do web se quiser)
       let totalInseridos = 0;
 
+      // 1. Fechar a vigência das tabelas antigas que ainda estão ativas (FIM_VIGENCIA IS NULL)
+      await request.query(`
+          UPDATE [dbo].[FA_CIOT_TABELA_CADASTRO]
+          SET FIM_VIGENCIA = GETDATE()
+          WHERE FIM_VIGENCIA IS NULL
+      `);
+
       for (const tk of tblKeys) {
          // 1. Inserir Cadastro
          const cadastroResult = await request.query(`
