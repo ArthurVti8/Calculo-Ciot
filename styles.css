@@ -261,6 +261,18 @@ body::before {
   letter-spacing: 0.06em;
 }
 
+.calc-btn-container {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  margin-top: 4px;
+}
+
+.calc-btn-container .btn {
+  min-width: 200px;
+}
+
 select, input[type="number"] {
   background: var(--bg-surface);
   color: var(--text-primary);
@@ -1275,3 +1287,5 @@ select option {
 
 .diff-row-changed .grid-input { color: var(--text-primary); font-weight: 700; }
 .diff-row-new .grid-input { color: var(--success); font-weight: 700; }
+
+@media (max-width: 768px) { .calc-btn-container .btn { width: 100%; } }
