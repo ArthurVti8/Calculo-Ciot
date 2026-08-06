@@ -246,6 +246,12 @@
           </svg>
           Leitura OCR (Img/PDF)
         </button>
+        <button class="update-tab" data-method="manual">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edição Manual
+        </button>
       </div>
 
 
@@ -343,6 +349,31 @@
         
         <!-- Canvas oculto para converter PDF em Imagem -->
         <canvas id="pdfCanvas" hidden></canvas>
+      </div>
+
+      <!-- Method: Manual Edit -->
+      <div id="methodManual" class="method-panel" style="display:none;">
+        <div class="method-info">
+          <strong>Edição Manual Livre:</strong> Edite qualquer valor diretamente na grade. Útil para ajustes finos rápidos caso nenhuma ferramenta automática esteja disponível.
+        </div>
+        
+        <div class="ocr-controls" style="margin-top: 15px;">
+          <div class="form-group" style="flex:1;">
+            <label>Qual tabela deseja editar?</label>
+            <select id="manualTableSelect">
+              <option value="A">Tabela A - Transporte Rodoviário de Carga Lotação</option>
+              <option value="B">Tabela B - Contratação apenas do veículo automotor</option>
+              <option value="C">Tabela C - Transporte Lotação de Alto Desempenho</option>
+              <option value="D">Tabela D - Contratação veículo Alto Desempenho</option>
+            </select>
+          </div>
+          <button id="btnOpenManualEdit" class="btn btn-primary" style="margin-top:22px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            Abrir Grade Editável
+          </button>
+        </div>
       </div>
 
       <!-- Diff Preview / Editable Grid (shared by all methods) -->

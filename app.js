@@ -89,6 +89,10 @@ function setupUpdateListeners() {
       document.getElementById('methodMonitor').classList.toggle('hidden', method !== 'monitor');
       document.getElementById('methodScraper').classList.toggle('hidden', method !== 'scraper');
       document.getElementById('methodOcr').classList.toggle('hidden', method !== 'ocr');
+      
+      // Mostrar ou esconder Edição Manual
+      const manualPanel = document.getElementById('methodManual');
+      if(manualPanel) manualPanel.style.display = method === 'manual' ? 'block' : 'none';
     });
   });
   // Monitor: verify
@@ -99,6 +103,32 @@ function setupUpdateListeners() {
   
   // OCR: Setup
   setupOcrListeners();
+  
+  // Manual Edit
+  const btnManual = document.getElementById('btnOpenManualEdit');
+  if(btnManual) {
+    btnManual.addEventListener('click', () => {
+      const tableId = document.getElementById('manualTableSelect').value;
+      
+      // Clone atual para temp
+      tabelas_temp = JSON.parse(JSON.stringify(TABELAS));
+      
+      // Esconder paineis
+      document.getElementById('updateModal').classList.add('hidden');
+      document.getElementById('diffPreview').classList.remove('hidden');
+      
+      // Selecionar a aba certa na grade
+      document.querySelectorAll('.paste-tab[data-grid-tab]').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.paste-tab[data-grid-tab="${tableId}"]`).classList.add('active');
+      
+      // Mostrar info success message genérica
+      const headerMsg = document.getElementById('diffHeaderMsg');
+      headerMsg.innerHTML = `<span style="color:var(--text-primary)">Você está no Modo de Edição Manual (Tabela ${tableId}). Nenhuma alteração foi extraída. Edite diretamente abaixo.</span>`;
+      
+      // Renderizar Grade
+      renderEditGrid(tableId);
+    });
+  }
   
   // Grid Tabs
   document.querySelectorAll('.paste-tab[data-grid-tab]').forEach(tab => {
