@@ -110,23 +110,21 @@ function setupUpdateListeners() {
     btnManual.addEventListener('click', () => {
       const tableId = document.getElementById('manualTableSelect').value;
       
-      // Clone atual para temp
-      tabelas_temp = JSON.parse(JSON.stringify(TABELAS));
+      // Clone atual para TABELAS_PENDING
+      TABELAS_PENDING = JSON.parse(JSON.stringify(TABELAS));
       
-      // Esconder paineis
-      document.getElementById('updateModal').classList.add('hidden');
-      document.getElementById('diffPreview').classList.remove('hidden');
-      
-      // Selecionar a aba certa na grade
-      document.querySelectorAll('.paste-tab[data-grid-tab]').forEach(t => t.classList.remove('active'));
-      document.querySelector(`.paste-tab[data-grid-tab="${tableId}"]`).classList.add('active');
+      // Esconder outras interfaces de metodo para limpar a tela visualmente (opcional)
+      document.getElementById('methodManual').classList.add('hidden');
+      document.querySelector('.update-tabs').classList.add('hidden');
       
       // Mostrar info success message genérica
       const headerMsg = document.getElementById('diffHeaderMsg');
-      headerMsg.innerHTML = `<span style="color:var(--text-primary)">Você está no Modo de Edição Manual (Tabela ${tableId}). Nenhuma alteração foi extraída. Edite diretamente abaixo.</span>`;
+      if(headerMsg) {
+        headerMsg.innerHTML = `<span style="color:var(--text-primary)">Você está no Modo de Edição Manual (Tabela ${tableId}). Nenhuma alteração foi extraída. Edite diretamente abaixo.</span>`;
+      }
       
       // Renderizar Grade
-      renderEditGrid(tableId);
+      showDiffPreview(tableId);
     });
   }
   
@@ -142,6 +140,10 @@ function setupUpdateListeners() {
   document.getElementById('btnApplyChanges').addEventListener('click', aplicarAlteracoes);
   document.getElementById('btnCancelChanges').addEventListener('click', () => {
     document.getElementById('diffPreview').classList.add('hidden');
+    const mm = document.getElementById('methodManual');
+    if(mm) mm.classList.remove('hidden');
+    const ut = document.querySelector('.update-tabs');
+    if(ut) ut.classList.remove('hidden');
     TABELAS_PENDING = null;
   });
 }
@@ -149,6 +151,10 @@ function setupUpdateListeners() {
 function closeUpdateModal() {
   document.getElementById('updateModal').classList.add('hidden');
   document.getElementById('diffPreview').classList.add('hidden');
+  const mm = document.getElementById('methodManual');
+  if(mm) mm.classList.remove('hidden');
+  const ut = document.querySelector('.update-tabs');
+  if(ut) ut.classList.remove('hidden');
   TABELAS_PENDING = null;
 }
 
