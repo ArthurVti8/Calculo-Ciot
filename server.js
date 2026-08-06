@@ -147,44 +147,77 @@ const server = http.createServer(async (req, res) => {
       const request = pool.request();
 
       await request.query(`
-        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='FA_ANTT_COEFICIENTES' and xtype='U')
-        CREATE TABLE [dbo].[FA_ANTT_COEFICIENTES] (
+        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='FA_CIOT_TABELA_CADASTRO' and xtype='U')
+        CREATE TABLE [dbo].[FA_CIOT_TABELA_CADASTRO] (
+            [ID_TABELA] [int] IDENTITY(1,1) NOT NULL,
+            [DESCRICAO] [varchar](100) NULL,
             [TIPO_TABELA] [char](1) NOT NULL,
-            [CODTIPOCARGA_FCT] [varchar](2) NOT NULL,
-            [NUMEROEIXOS_FCV] [int] NOT NULL,
-            [VALOR_KM] [decimal](10,4) NOT NULL,
-            [VALOR_FIXO] [decimal](10,4) NOT NULL,
-            CONSTRAINT PK_FA_ANTT PRIMARY KEY (TIPO_TABELA, CODTIPOCARGA_FCT, NUMEROEIXOS_FCV)
-        )
+            [NR_RESOLUCAO] [varchar](20) NULL,
+            [DATA_PUBLICACAO] [datetime] NULL,
+            [INICIO_VIGENCIA] [datetime] NULL,
+            [FIM_VIGENCIA] [datetime] NULL,
+            CONSTRAINT [PK_FA_CIOT_TABELA_CADASTRO] PRIMARY KEY CLUSTERED ([ID_TABELA] ASC)
+        );
+
+        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='FA_CIOT_TABELA_VALORES' and xtype='U')
+        CREATE TABLE [dbo].[FA_CIOT_TABELA_VALORES] (
+            [ID_VALOR] [int] IDENTITY(1,1) NOT NULL,
+            [ID_TABELA] [int] NOT NULL,
+            [ID_TIPO_CARGA] [varchar](2) NOT NULL,
+            [NR_EIXOS] [int] NOT NULL,
+            [CCD_VALOR] [decimal](10,4) NOT NULL,
+            [CC_VALOR] [decimal](10,4) NOT NULL,
+            [RETORNO_VAZIO_VALOR] [decimal](10,4) NULL,
+            CONSTRAINT [PK_FA_CIOT_TABELA_VALORES] PRIMARY KEY CLUSTERED ([ID_VALOR] ASC),
+            CONSTRAINT [UQ_TABELA_CARGA_EIXOS] UNIQUE ([ID_TABELA], [ID_TIPO_CARGA], [NR_EIXOS]),
+            CONSTRAINT [FK_TABELA_VALORES_CADASTRO] FOREIGN KEY ([ID_TABELA]) 
+                REFERENCES [dbo].[FA_CIOT_TABELA_CADASTRO] ([ID_TABELA]) ON DELETE CASCADE
+        );
       `);
 
-      await request.query(`TRUNCATE TABLE [dbo].[FA_ANTT_COEFICIENTES]`);
-
       const tblKeys = ['A', 'B', 'C', 'D'];
-      let values = [];
-      
+      const resolucaoAtual = "6.084/2026"; // Resolução fixa por enquanto (pode vir do web se quiser)
+      let totalInseridos = 0;
+
       for (const tk of tblKeys) {
+         // 1. Inserir Cadastro
+         const cadastroResult = await request.query(`
+             INSERT INTO [dbo].[FA_CIOT_TABELA_CADASTRO] 
+             (DESCRICAO, TIPO_TABELA, NR_RESOLUCAO, DATA_PUBLICACAO, INICIO_VIGENCIA)
+             OUTPUT INSERTED.ID_TABELA
+             VALUES 
+             ('Tabela ANTT ${tk} - Resolucao ${resolucaoAtual}', '${tk}', '${resolucaoAtual}', GETDATE(), GETDATE())
+         `);
+         
+         const idTabela = cadastroResult.recordset[0].ID_TABELA;
+         
+         // 2. Prepara Valores
          const tData = tabelasAntt.tabelas[tk].dados;
+         let values = [];
+         
          for (const codCarga in tData) {
             const cargaId = codCarga.toString();
             for (let i=0; i<eixosArr.length; i++) {
                const numEixos = eixosArr[i];
                const valKm = tData[codCarga].CCD[i] !== null ? tData[codCarga].CCD[i] : 0;
                const valFixo = tData[codCarga].CC[i] !== null ? tData[codCarga].CC[i] : 0;
+               
                if (valKm > 0 || valFixo > 0) {
-                 values.push(`('${tk}', '${cargaId}', ${numEixos}, ${valKm}, ${valFixo})`);
+                 values.push(`(${idTabela}, '${cargaId}', ${numEixos}, ${valKm}, ${valFixo})`);
                }
             }
          }
-      }
-      
-      const chunkSize = 100;
-      for (let i = 0; i < values.length; i += chunkSize) {
-          const chunk = values.slice(i, i + chunkSize);
-          await request.query(`INSERT INTO [dbo].[FA_ANTT_COEFICIENTES] (TIPO_TABELA, CODTIPOCARGA_FCT, NUMEROEIXOS_FCV, VALOR_KM, VALOR_FIXO) VALUES ${chunk.join(',')}`);
+         
+         // 3. Inserir Valores
+         const chunkSize = 100;
+         for (let i = 0; i < values.length; i += chunkSize) {
+             const chunk = values.slice(i, i + chunkSize);
+             await request.query(`INSERT INTO [dbo].[FA_CIOT_TABELA_VALORES] (ID_TABELA, ID_TIPO_CARGA, NR_EIXOS, CCD_VALOR, CC_VALOR) VALUES ${chunk.join(',')}`);
+         }
+         totalInseridos += values.length;
       }
       await pool.close();
-      sendJSON(res, 200, { sucesso: true, message: \`\${values.length} coeficientes sincronizados com sucesso!\` });
+      sendJSON(res, 200, { sucesso: true, message: `${totalInseridos} coeficientes sincronizados com sucesso!` });
     } catch(e) {
       console.error('[API] Erro SQL Server:', e);
       sendJSON(res, 500, { erro: e.message });
