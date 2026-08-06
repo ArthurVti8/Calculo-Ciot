@@ -194,7 +194,7 @@ const server = http.createServer(async (req, res) => {
 
       console.log(`[OCR] Imagem salva. Iniciando Gemini Vision AI...`);
 
-      const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
       const prompt = `
 Você é um extrator de dados de tabelas de frete da ANTT.
