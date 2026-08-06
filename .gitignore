@@ -1,0 +1,6 @@
+node_modules/
+backups/
+app_js_logs.txt
+*.traineddata
+_ocr_temp.png
+.env
