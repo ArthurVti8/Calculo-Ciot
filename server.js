@@ -10,6 +10,7 @@ const { scrapeResolucao } = require('./scraper');
 const { verificarAtualizacao, getStatus } = require('./monitor');
 require('dotenv').config();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const sql = require('mssql');
 
 // Chave da API (agora escondida no arquivo .env)
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -122,6 +123,71 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       console.error('[API] Erro ao salvar tabelas:', e.message);
       sendJSON(res, 500, { erro: 'Erro ao salvar tabelas: ' + e.message });
+    }
+    return;
+  }
+
+  // POST /api/sync-sqlserver — Integração ERP Delphi SQL Server
+  if (url.pathname === '/api/sync-sqlserver' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      const tabelasAntt = JSON.parse(body);
+      const eixosArr = tabelasAntt.eixos;
+      
+      const config = {
+        user: process.env.DB_USER || 'sa',
+        password: process.env.DB_PASSWORD || '',
+        server: process.env.DB_SERVER || 'localhost',
+        database: process.env.DB_NAME || 'TripaGel0001',
+        options: { encrypt: false, trustServerCertificate: true }
+      };
+
+      const pool = new sql.ConnectionPool(config);
+      await pool.connect();
+      const request = pool.request();
+
+      await request.query(`
+        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='FA_ANTT_COEFICIENTES' and xtype='U')
+        CREATE TABLE [dbo].[FA_ANTT_COEFICIENTES] (
+            [TIPO_TABELA] [char](1) NOT NULL,
+            [CODTIPOCARGA_FCT] [varchar](2) NOT NULL,
+            [NUMEROEIXOS_FCV] [int] NOT NULL,
+            [VALOR_KM] [decimal](10,4) NOT NULL,
+            [VALOR_FIXO] [decimal](10,4) NOT NULL,
+            CONSTRAINT PK_FA_ANTT PRIMARY KEY (TIPO_TABELA, CODTIPOCARGA_FCT, NUMEROEIXOS_FCV)
+        )
+      `);
+
+      await request.query(`TRUNCATE TABLE [dbo].[FA_ANTT_COEFICIENTES]`);
+
+      const tblKeys = ['A', 'B', 'C', 'D'];
+      let values = [];
+      
+      for (const tk of tblKeys) {
+         const tData = tabelasAntt.tabelas[tk].dados;
+         for (const codCarga in tData) {
+            const cargaId = codCarga.toString();
+            for (let i=0; i<eixosArr.length; i++) {
+               const numEixos = eixosArr[i];
+               const valKm = tData[codCarga].CCD[i] !== null ? tData[codCarga].CCD[i] : 0;
+               const valFixo = tData[codCarga].CC[i] !== null ? tData[codCarga].CC[i] : 0;
+               if (valKm > 0 || valFixo > 0) {
+                 values.push(`('${tk}', '${cargaId}', ${numEixos}, ${valKm}, ${valFixo})`);
+               }
+            }
+         }
+      }
+      
+      const chunkSize = 100;
+      for (let i = 0; i < values.length; i += chunkSize) {
+          const chunk = values.slice(i, i + chunkSize);
+          await request.query(`INSERT INTO [dbo].[FA_ANTT_COEFICIENTES] (TIPO_TABELA, CODTIPOCARGA_FCT, NUMEROEIXOS_FCV, VALOR_KM, VALOR_FIXO) VALUES ${chunk.join(',')}`);
+      }
+      await pool.close();
+      sendJSON(res, 200, { sucesso: true, message: \`\${values.length} coeficientes sincronizados com sucesso!\` });
+    } catch(e) {
+      console.error('[API] Erro SQL Server:', e);
+      sendJSON(res, 500, { erro: e.message });
     }
     return;
   }

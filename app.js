@@ -582,6 +582,7 @@ async function aplicarAlteracoes() {
   if (!TABELAS_PENDING) return;
 
   try {
+    // 1. Salvar localmente
     const resp = await fetch('/api/salvar-tabelas', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -590,6 +591,22 @@ async function aplicarAlteracoes() {
     const data = await resp.json();
 
     if (data.sucesso) {
+      // 2. Sincronizar com ERP Delphi (SQL Server)
+      try {
+        const syncResp = await fetch('/api/sync-sqlserver', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(TABELAS_PENDING)
+        });
+        const syncData = await syncResp.json();
+        if(!syncData.sucesso) {
+           console.error('Aviso: Erro ao sincronizar SQL:', syncData.erro);
+           showToast(`Salvo local. Porém falhou ao enviar pro ERP: ${syncData.erro}`);
+        }
+      } catch(e) {
+        console.error('Falha de rede ao sincronizar SQL:', e);
+      }
+
       TABELAS = TABELAS_PENDING;
       TABELAS_PENDING = null;
       PASTE_DATA = { A: null, B: null, C: null, D: null };
@@ -600,7 +617,7 @@ async function aplicarAlteracoes() {
       calcular();
 
       closeUpdateModal();
-      showToast(`Tabelas atualizadas com sucesso! Backup: ${data.backup || 'N/A'}`);
+      showToast(`Tabelas sincronizadas no ERP Delphi e salvas localmente!`);
     } else {
       showToast('Erro: ' + (data.erro || 'Falha desconhecida'));
     }
