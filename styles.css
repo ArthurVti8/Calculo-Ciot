@@ -262,7 +262,7 @@ body::before {
 }
 
 .calc-btn-container {
-  grid-column: 1 / -1;
+  grid-column: 2 / -1;
   display: flex;
   justify-content: center;
   align-items: flex-end;
