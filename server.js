@@ -194,8 +194,6 @@ const server = http.createServer(async (req, res) => {
 
       console.log(`[OCR] Imagem salva. Iniciando Gemini Vision AI...`);
 
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-
       const prompt = `
 Você é um extrator de dados de tabelas de frete da ANTT.
 A imagem anexa é a "Tabela ${tableId}" da Resolução ANTT de frete mínimo.
@@ -229,9 +227,35 @@ Não adicione mais nenhum texto na sua resposta além do JSON.
         },
       ];
 
-      const result = await model.generateContent([prompt, ...imageParts]);
-      const response = await result.response;
-      let text = response.text();
+      // Sistema de Fallback Profissional para os modelos da IA
+      const modelNamesToTry = [
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro-latest"
+      ];
+
+      let text = null;
+      let lastError = null;
+
+      for (const modelName of modelNamesToTry) {
+        try {
+          console.log(`[OCR] Tentando usar o modelo: ${modelName}...`);
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent([prompt, ...imageParts]);
+          const response = await result.response;
+          text = response.text();
+          console.log(`[OCR] Sucesso com o modelo ${modelName}!`);
+          break; // Sai do loop se der certo
+        } catch (err) {
+          console.warn(`[OCR] Falha ao tentar ${modelName}: ${err.message}`);
+          lastError = err;
+        }
+      }
+
+      if (!text) {
+        throw new Error(`Todos os modelos falharam. Último erro: ${lastError.message}`);
+      }
 
       // Limpar arquivo temporario
       try { fs.unlinkSync(tmpFile); } catch(e) {}
