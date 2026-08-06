@@ -240,9 +240,11 @@ Não adicione mais nenhum texto na sua resposta além do JSON.
 
       for (const modelName of modelNamesToTry) {
         let attempts = 0;
-        while (attempts < 2 && !success) {
+        const maxAttempts = 3; // Tentar até 3 vezes por modelo
+        
+        while (attempts < maxAttempts && !success) {
           try {
-            console.log(`[OCR] Tentando modelo: ${modelName} (Tentativa ${attempts + 1})...`);
+            console.log(`[OCR] Tentando modelo: ${modelName} (Tentativa ${attempts + 1}/${maxAttempts})...`);
             const model = genAI.getGenerativeModel({ model: modelName });
             const result = await model.generateContent([prompt, ...imageParts]);
             const response = await result.response;
@@ -254,11 +256,14 @@ Não adicione mais nenhum texto na sua resposta além do JSON.
             console.warn(`[OCR] Falha no ${modelName}: ${err.message}`);
             lastError = err;
             attempts++;
-            if (err.message.includes("503") || err.message.includes("429")) {
-              console.log("[OCR] Servidor lotado. Aguardando 3 segundos...");
-              await new Promise(resolve => setTimeout(resolve, 3000));
-            } else {
-              break; // Erro 404 ou estrutural, não adianta tentar o mesmo modelo
+            
+            if (!success && attempts < maxAttempts && (err.message.includes("503") || err.message.includes("429"))) {
+              // Exponential Backoff: 2s, 4s, 8s...
+              const delay = Math.pow(2, attempts) * 1000; 
+              console.log(`[OCR] Servidor lotado. Exponential Backoff ativado: aguardando ${delay/1000} segundos...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            } else if (!err.message.includes("503") && !err.message.includes("429")) {
+              break; // Erro 404 ou estrutural, pula para o próximo modelo
             }
           }
         }
