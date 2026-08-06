@@ -229,28 +229,40 @@ Não adicione mais nenhum texto na sua resposta além do JSON.
 
       // Sistema de Fallback Profissional para os modelos da IA
       const modelNamesToTry = [
+        "gemini-flash-latest",
         "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-pro-latest"
+        "gemini-1.0-pro-vision-latest"
       ];
 
       let text = null;
       let lastError = null;
+      let success = false;
 
       for (const modelName of modelNamesToTry) {
-        try {
-          console.log(`[OCR] Tentando usar o modelo: ${modelName}...`);
-          const model = genAI.getGenerativeModel({ model: modelName });
-          const result = await model.generateContent([prompt, ...imageParts]);
-          const response = await result.response;
-          text = response.text();
-          console.log(`[OCR] Sucesso com o modelo ${modelName}!`);
-          break; // Sai do loop se der certo
-        } catch (err) {
-          console.warn(`[OCR] Falha ao tentar ${modelName}: ${err.message}`);
-          lastError = err;
+        let attempts = 0;
+        while (attempts < 2 && !success) {
+          try {
+            console.log(`[OCR] Tentando modelo: ${modelName} (Tentativa ${attempts + 1})...`);
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent([prompt, ...imageParts]);
+            const response = await result.response;
+            text = response.text();
+            console.log(`[OCR] Sucesso com o modelo ${modelName}!`);
+            success = true;
+            break; 
+          } catch (err) {
+            console.warn(`[OCR] Falha no ${modelName}: ${err.message}`);
+            lastError = err;
+            attempts++;
+            if (err.message.includes("503") || err.message.includes("429")) {
+              console.log("[OCR] Servidor lotado. Aguardando 3 segundos...");
+              await new Promise(resolve => setTimeout(resolve, 3000));
+            } else {
+              break; // Erro 404 ou estrutural, não adianta tentar o mesmo modelo
+            }
+          }
         }
+        if (success) break;
       }
 
       if (!text) {
