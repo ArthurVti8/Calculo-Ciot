@@ -176,10 +176,19 @@ const server = http.createServer(async (req, res) => {
       `);
 
       const tblKeys = ['A', 'B', 'C', 'D'];
-      const resolucaoAtual = "6.084/2026"; // Resolução fixa por enquanto (pode vir do web se quiser)
+      const resolucaoAtual = "6.084/2026"; // Resolução fixa por enquanto
+      const dataPublicacaoStr = "2026-07-17"; // Data real da publicação no DOU
       let totalInseridos = 0;
 
-      // 1. Fechar a vigência das tabelas antigas que ainda estão ativas (FIM_VIGENCIA IS NULL)
+      // 1. Apagar a mesma resolução caso já exista no banco.
+      // Isso permite que você faça edições/correções sem encerrar a vigência dela mesma.
+      // (O ON DELETE CASCADE vai apagar os coeficientes filhos automaticamente)
+      await request.query(`
+          DELETE FROM [dbo].[FA_CIOT_TABELA_CADASTRO]
+          WHERE NR_RESOLUCAO = '${resolucaoAtual}'
+      `);
+
+      // 2. Fechar a vigência apenas de resoluções ANTIGAS (diferentes da atual)
       await request.query(`
           UPDATE [dbo].[FA_CIOT_TABELA_CADASTRO]
           SET FIM_VIGENCIA = GETDATE()
@@ -187,13 +196,13 @@ const server = http.createServer(async (req, res) => {
       `);
 
       for (const tk of tblKeys) {
-         // 1. Inserir Cadastro
+         // 3. Inserir Cadastro usando a data correta da publicação
          const cadastroResult = await request.query(`
              INSERT INTO [dbo].[FA_CIOT_TABELA_CADASTRO] 
              (DESCRICAO, TIPO_TABELA, NR_RESOLUCAO, DATA_PUBLICACAO, INICIO_VIGENCIA)
              OUTPUT INSERTED.ID_TABELA
              VALUES 
-             ('Tabela ANTT ${tk} - Resolucao ${resolucaoAtual}', '${tk}', '${resolucaoAtual}', GETDATE(), GETDATE())
+             ('Tabela ANTT ${tk} - Resolucao ${resolucaoAtual}', '${tk}', '${resolucaoAtual}', '${dataPublicacaoStr}', '${dataPublicacaoStr}')
          `);
          
          const idTabela = cadastroResult.recordset[0].ID_TABELA;
