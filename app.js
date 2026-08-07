@@ -9,7 +9,6 @@ let TABELAS_PENDING = null;  // Tabelas pendentes de aprovação
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', async () => {
   await carregarTabelas();
-  await carregarTabelas();
   setupEventListeners();
   setupUpdateListeners();
   renderTable('A');
@@ -52,9 +51,7 @@ function setupEventListeners() {
     });
   });
 
-  // Export buttons
-  document.getElementById('btnExportSQL').addEventListener('click', exportarSQL);
-  document.getElementById('btnExportJSON').addEventListener('click', exportarJSON);
+  // Export buttons removed
 
   // Modal
   document.getElementById('btnCloseModal').addEventListener('click', () => {
