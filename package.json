@@ -1,8 +1,23 @@
 {
+  "name": "calculadora-ciot",
+  "version": "1.0.0",
+  "main": "server.js",
+  "bin": "server.js",
+  "scripts": {
+    "build": "caxa --input . --output TabelaCiot_Server.exe --exclude \"TabelaCiot_Server.exe\" \"TabelaCiot.exe\" \"TabelaCiot.rar\" \"*.traineddata\" \"app_js_logs.txt\" \"my_stub.exe\" \"icon.*\" \"icon_real.*\" \"check_sizes.js\" \".git\" \"node_modules/sharp\" \"node_modules/@img\" \"node_modules/jimp\" \"node_modules/rcedit\" \"node_modules/png-to-ico\" \"node_modules/caxa\" \"node_modules/pngjs\" --uncompression-message \"[Motor] Inicializando servidor em segundo plano...\" -- \"{{caxa}}/node_modules/.bin/node\" \"{{caxa}}/server.js\""
+  },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "dotenv": "^17.4.2",
     "mssql": "^12.7.0",
     "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "caxa": "^3.0.1",
+    "jimp": "^1.6.1",
+    "pkg": "^5.8.1",
+    "png-to-ico": "^3.0.2",
+    "rcedit": "^5.0.2",
+    "sharp": "^0.35.3"
   }
 }

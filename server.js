@@ -8,17 +8,79 @@ const fs = require('fs');
 const path = require('path');
 const { scrapeResolucao } = require('./scraper');
 const { verificarAtualizacao, getStatus } = require('./monitor');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(process.cwd(), '.env') });
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const sql = require('mssql');
+const { exec } = require('child_process');
+
+// --- AUTO-SHUTDOWN HEARTBEAT ---
+let lastHeartbeat = Date.now();
+// Checa a cada 5 segundos se o frontend parou de pingar
+setInterval(() => {
+  if (Date.now() - lastHeartbeat > 15000) {
+    console.log('[Sistema] Frontend fechado ou inativo. Desligando o servidor em background...');
+    process.exit(0);
+  }
+}, 5000);
+// -------------------------------
 
 // Chave da API (agora escondida no arquivo .env)
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 const PORT = 3001;
-const TABELAS_FILE = path.join(__dirname, 'tabelas_frete.json');
-const BACKUP_DIR = path.join(__dirname, 'backups');
+const TABELAS_FILE = path.join(process.cwd(), 'tabelas_frete.json');
+const BACKUP_DIR = path.join(process.cwd(), 'backups');
+
+// Leitura do UDL caso passado como argumento (Integração Delphi) ou Auto-Detecção
+let argFile = process.argv[2];
+
+if (!argFile) {
+  // Se não passou argumento, tenta primeiro VTI.udl, senão procura qualquer outra na pasta
+  const files = fs.readdirSync(process.cwd());
+  const vtiUdl = files.find(f => f.toLowerCase() === 'vti.udl');
+  
+  if (vtiUdl) {
+    argFile = vtiUdl;
+    console.log(`[UDL] VTI.udl detectada na pasta. Selecionando como base principal...`);
+  } else {
+    const udlFiles = files.filter(f => f.toLowerCase().endsWith('.udl'));
+    if (udlFiles.length > 0) {
+      argFile = udlFiles[0];
+      console.log(`[UDL] Várias UDLs encontradas. Auto-selecionando a primeira: ${argFile}`);
+    }
+  }
+}
+
+if (argFile && argFile.toLowerCase().endsWith('.udl')) {
+  try {
+    const udlPath = path.resolve(process.cwd(), argFile);
+    if (fs.existsSync(udlPath)) {
+      // UDL geralmente é UTF-16LE, lemos o buffer e removemos nulos
+      const buffer = fs.readFileSync(udlPath);
+      const content = buffer.toString('utf16le').replace(/\0/g, ''); 
+      const creds = {};
+      
+      content.split(';').forEach(p => {
+        const [k, v] = p.split('=');
+        if (k && v) creds[k.trim().toLowerCase()] = v.trim();
+      });
+
+      if (creds['data source']) process.env.DB_SERVER = creds['data source'];
+      if (creds['initial catalog']) process.env.DB_NAME = creds['initial catalog'];
+      if (creds['user id']) process.env.DB_USER = creds['user id'];
+      if (creds['password']) process.env.DB_PASSWORD = creds['password'];
+      
+      console.log(`[UDL] Banco de dados configurado via ${path.basename(argFile)}`);
+      console.log(`[UDL] Conectando em: ${process.env.DB_SERVER} -> ${process.env.DB_NAME}`);
+    } else {
+      console.error(`[ERRO UDL] Arquivo não encontrado: ${udlPath}`);
+    }
+  } catch (err) {
+    console.error(`[ERRO UDL] Falha ao ler arquivo:`, err.message);
+  }
+}
+
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -305,7 +367,7 @@ const server = http.createServer(async (req, res) => {
       const imgBuffer = Buffer.from(base64Data, 'base64');
 
       // Salvar temporariamente
-      const tmpFile = path.join(__dirname, '_ocr_temp.png');
+      const tmpFile = path.join(process.cwd(), '_ocr_temp.png');
       fs.writeFileSync(tmpFile, imgBuffer);
 
       console.log(`[OCR] Imagem salva. Iniciando Gemini Vision AI...`);
@@ -576,6 +638,12 @@ server.listen(PORT, () => {
   console.log('  ║  GET  /api/verificar-atualizacao               ║');
   console.log('  ║  POST /api/scraper                             ║');
   console.log('  ║  GET  /api/backups                             ║');
-  console.log('  ╚════════════════════════════════════════════════╝');
-  console.log('');
+  console.log(`  ╚════════════════════════════════════════════════╝\n`);
+  
+  // Abre o navegador padrão automaticamente no Windows
+  console.log(`[Sistema] Abrindo navegador...`);
+  exec(`start http://localhost:${PORT}`);
+  
+  // Inicia o monitoramento
+  verificarAtualizacao();
 });

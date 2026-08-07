@@ -1,5 +1,5 @@
 {
-  "ultimaVerificacao": "2026-08-06T18:41:26.433Z",
+  "ultimaVerificacao": "2026-08-07T16:19:39.173Z",
   "ultimaResolucao": {
     "titulo": "Resolução ANTT nº 6.084 de 16 de julho de 2026",
     "url": "https://www.in.gov.br/web/dou/-/resolucao-antt-n-6.084-de-16-de-julho-de-2026-719732378",
@@ -26,6 +26,11 @@
     },
     {
       "data": "2026-08-06T18:41:26.433Z",
+      "resultadosEncontrados": 0,
+      "novosEncontrados": 0
+    },
+    {
+      "data": "2026-08-07T16:19:39.173Z",
       "resultadosEncontrados": 0,
       "novosEncontrados": 0
     }

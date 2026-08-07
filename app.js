@@ -893,3 +893,8 @@ function showToast(message) {
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
 }
+
+// AUTO-SHUTDOWN HEARTBEAT
+setInterval(() => {
+  fetch('/api/heartbeat').catch(err => console.log('Server ping failed'));
+}, 3000);
