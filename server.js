@@ -167,7 +167,6 @@ const server = http.createServer(async (req, res) => {
             [NR_EIXOS] [int] NOT NULL,
             [CCD_VALOR] [decimal](10,4) NOT NULL,
             [CC_VALOR] [decimal](10,4) NOT NULL,
-            [RETORNO_VAZIO_VALOR] [decimal](10,4) NULL,
             CONSTRAINT [PK_FA_CIOT_TABELA_VALORES] PRIMARY KEY CLUSTERED ([ID_VALOR] ASC),
             CONSTRAINT [UQ_TABELA_CARGA_EIXOS] UNIQUE ([ID_TABELA], [ID_TIPO_CARGA], [NR_EIXOS]),
             CONSTRAINT [FK_TABELA_VALORES_CADASTRO] FOREIGN KEY ([ID_TABELA]) 
