@@ -4,3 +4,11 @@ app_js_logs.txt
 *.traineddata
 _ocr_temp.png
 .env
+# Temporary scripts and binaries
+check_sizes.js
+create_trace.js
+trace.js
+*.exe
+*.bin
+*.udl
+Producao_VTI/
