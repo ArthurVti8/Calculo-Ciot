@@ -176,7 +176,8 @@ const server = http.createServer(async (req, res) => {
 
       const tblKeys = ['A', 'B', 'C', 'D'];
       const resolucaoAtual = "6.084/2026"; // Resolução fixa por enquanto
-      const dataPublicacaoStr = "2026-07-17"; // Data real da publicação no DOU
+      const dataPublicacaoStr = "2026-07-17"; // Data de publicação no DOU
+      const inicioVigenciaStr = "2026-07-16"; // Data da resolução (assinatura)
       let totalInseridos = 0;
 
       // 1. Apagar a mesma resolução caso já exista no banco.
@@ -195,13 +196,13 @@ const server = http.createServer(async (req, res) => {
       `);
 
       for (const tk of tblKeys) {
-         // 3. Inserir Cadastro usando a data correta da publicação
+         // 3. Inserir Cadastro usando a data correta da publicação e vigência
          const cadastroResult = await request.query(`
              INSERT INTO [dbo].[FA_CIOT_TABELA_CADASTRO] 
              (DESCRICAO, TIPO_TABELA, NR_RESOLUCAO, DATA_PUBLICACAO, INICIO_VIGENCIA)
              OUTPUT INSERTED.ID_TABELA
              VALUES 
-             ('Tabela ANTT ${tk} - Resolucao ${resolucaoAtual}', '${tk}', '${resolucaoAtual}', '${dataPublicacaoStr}', '${dataPublicacaoStr}')
+             ('Tabela ANTT ${tk} - Resolucao ${resolucaoAtual}', '${tk}', '${resolucaoAtual}', '${dataPublicacaoStr}', '${inicioVigenciaStr}')
          `);
          
          const idTabela = cadastroResult.recordset[0].ID_TABELA;
