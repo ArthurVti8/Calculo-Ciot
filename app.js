@@ -578,6 +578,22 @@ function updateDiffStats() {
 async function aplicarAlteracoes() {
   if (!TABELAS_PENDING) return;
 
+  // Ler metadados da tela
+  const resMeta = document.getElementById('inpMetaResolucao').value.trim();
+  const pubMeta = document.getElementById('inpMetaPublicacao').value;
+  const vigMeta = document.getElementById('inpMetaVigencia').value;
+
+  if (!resMeta || !pubMeta || !vigMeta) {
+    showToast('Por favor, preencha os dados da Resolução!');
+    return;
+  }
+
+  TABELAS_PENDING.metadata = {
+    resolucao: resMeta,
+    dataPublicacao: pubMeta,
+    inicioVigencia: vigMeta
+  };
+
   try {
     // 1. Salvar localmente
     const resp = await fetch('/api/salvar-tabelas', {

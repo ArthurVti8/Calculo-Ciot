@@ -175,9 +175,10 @@ const server = http.createServer(async (req, res) => {
       `);
 
       const tblKeys = ['A', 'B', 'C', 'D'];
-      const resolucaoAtual = "6.084/2026"; // Resolução fixa por enquanto
-      const dataPublicacaoStr = "2026-07-17"; // Data de publicação no DOU
-      const inicioVigenciaStr = "2026-07-16"; // Data da resolução (assinatura)
+      const meta = tabelasAntt.metadata || {};
+      const resolucaoAtual = meta.resolucao || "6.084/2026"; 
+      const dataPublicacaoStr = meta.dataPublicacao || "2026-07-17"; 
+      const inicioVigenciaStr = meta.inicioVigencia || "2026-07-16"; 
       let totalInseridos = 0;
 
       // 1. Apagar a mesma resolução caso já exista no banco.
