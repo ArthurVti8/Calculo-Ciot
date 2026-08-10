@@ -15,13 +15,15 @@ const { exec } = require('child_process');
 
 // --- AUTO-SHUTDOWN HEARTBEAT ---
 let lastHeartbeat = Date.now();
-// Checa a cada 5 segundos se o frontend parou de pingar
+// Checa a cada 30 segundos se o frontend parou de pingar
 setInterval(() => {
-  if (Date.now() - lastHeartbeat > 15000) {
-    console.log('[Sistema] Frontend fechado ou inativo. Desligando o servidor em background...');
+  // Timeout de 5 minutos (300.000 ms) para evitar que a aba em segundo plano do Chrome 
+  // (que suspende os timers) faça o servidor desligar sozinho.
+  if (Date.now() - lastHeartbeat > 300000) {
+    console.log('[Sistema] Frontend fechado ou inativo por 5 minutos. Desligando o servidor...');
     process.exit(0);
   }
-}, 5000);
+}, 30000);
 // -------------------------------
 
 // Chave da API (agora escondida no arquivo .env)
@@ -157,6 +159,12 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
   // ===== API ROUTES =====
+  if (url.pathname === '/api/heartbeat' && req.method === 'GET') {
+    lastHeartbeat = Date.now();
+    res.writeHead(200);
+    res.end('ok');
+    return;
+  }
 
   // POST /api/salvar-tabelas — Salva tabelas atualizadas
   if (url.pathname === '/api/salvar-tabelas' && req.method === 'POST') {
@@ -243,32 +251,48 @@ const server = http.createServer(async (req, res) => {
       const inicioVigenciaStr = meta.inicioVigencia || "2026-07-16"; 
       let totalInseridos = 0;
 
-      // 1. Apagar a mesma resolução caso já exista no banco.
-      // Isso permite que você faça edições/correções sem encerrar a vigência dela mesma.
-      // (O ON DELETE CASCADE vai apagar os coeficientes filhos automaticamente)
-      await request.query(`
-          DELETE FROM [dbo].[FA_CIOT_TABELA_CADASTRO]
-          WHERE NR_RESOLUCAO = '${resolucaoAtual}'
-      `);
-
-      // 2. Fechar a vigência apenas de resoluções ANTIGAS (diferentes da atual)
-      await request.query(`
-          UPDATE [dbo].[FA_CIOT_TABELA_CADASTRO]
-          SET FIM_VIGENCIA = GETDATE()
-          WHERE FIM_VIGENCIA IS NULL
-      `);
-
       for (const tk of tblKeys) {
-         // 3. Inserir Cadastro usando a data correta da publicação e vigência
-         const cadastroResult = await request.query(`
-             INSERT INTO [dbo].[FA_CIOT_TABELA_CADASTRO] 
-             (DESCRICAO, TIPO_TABELA, NR_RESOLUCAO, DATA_PUBLICACAO, INICIO_VIGENCIA)
-             OUTPUT INSERTED.ID_TABELA
-             VALUES 
-             ('Tabela ANTT ${tk} - Resolucao ${resolucaoAtual}', '${tk}', '${resolucaoAtual}', '${dataPublicacaoStr}', '${inicioVigenciaStr}')
+         // Lógica Limpa: Apenas UMA tabela de cada tipo (A, B, C, D) no banco.
+         const upsertResult = await request.query(`
+             DECLARE @NewInicioVigencia DATETIME = '${inicioVigenciaStr}';
+             DECLARE @NewDataPublicacao DATETIME = '${dataPublicacaoStr}';
+             DECLARE @IdTabela INT;
+
+             -- Tenta encontrar se a tabela (A, B, C ou D) já existe
+             SELECT @IdTabela = ID_TABELA 
+             FROM [dbo].[FA_CIOT_TABELA_CADASTRO] 
+             WHERE TIPO_TABELA = '${tk}';
+
+             IF @IdTabela IS NOT NULL
+             BEGIN
+                 -- ATUALIZAR TABELA EXISTENTE (sobrescreve os dados da resolução anterior)
+                 UPDATE [dbo].[FA_CIOT_TABELA_CADASTRO]
+                 SET DESCRICAO = 'Tabela ANTT ${tk} - Resolucao ${resolucaoAtual}',
+                     NR_RESOLUCAO = '${resolucaoAtual}',
+                     DATA_PUBLICACAO = @NewDataPublicacao,
+                     INICIO_VIGENCIA = @NewInicioVigencia,
+                     FIM_VIGENCIA = NULL 
+                 WHERE ID_TABELA = @IdTabela;
+
+                 -- Apagar os coeficientes antigos para re-inserir os atualizados
+                 DELETE FROM [dbo].[FA_CIOT_TABELA_VALORES] WHERE ID_TABELA = @IdTabela;
+             END
+             ELSE
+             BEGIN
+                 -- INSERIR A PRIMEIRA VEZ
+                 INSERT INTO [dbo].[FA_CIOT_TABELA_CADASTRO] 
+                 (DESCRICAO, TIPO_TABELA, NR_RESOLUCAO, DATA_PUBLICACAO, INICIO_VIGENCIA, FIM_VIGENCIA)
+                 VALUES 
+                 ('Tabela ANTT ${tk} - Resolucao ${resolucaoAtual}', '${tk}', '${resolucaoAtual}', @NewDataPublicacao, @NewInicioVigencia, NULL);
+
+                 SET @IdTabela = SCOPE_IDENTITY();
+             END
+
+             -- Retorna o ID
+             SELECT @IdTabela AS ID_TABELA;
          `);
          
-         const idTabela = cadastroResult.recordset[0].ID_TABELA;
+         const idTabela = upsertResult.recordset[0].ID_TABELA;
          
          // 2. Prepara Valores
          const tData = tabelasAntt.tabelas[tk].dados;
@@ -296,7 +320,7 @@ const server = http.createServer(async (req, res) => {
          totalInseridos += values.length;
       }
       await pool.close();
-      sendJSON(res, 200, { sucesso: true, message: `${totalInseridos} coeficientes sincronizados com sucesso!` });
+      sendJSON(res, 200, { sucesso: true, message: `${totalInseridos} coeficientes atualizados com sucesso!` });
     } catch(e) {
       console.error('[API] Erro SQL Server:', e);
       sendJSON(res, 500, { erro: e.message });
@@ -625,6 +649,9 @@ function padArr(arr, length) {
   return arr.slice(0, length);
 }
 
+const args = process.argv.slice(2);
+const openBrowser = !args.includes('--no-browser');
+
 server.listen(PORT, () => {
   console.log('');
   console.log('  ╔════════════════════════════════════════════════╗');
@@ -640,10 +667,24 @@ server.listen(PORT, () => {
   console.log('  ║  GET  /api/backups                             ║');
   console.log(`  ╚════════════════════════════════════════════════╝\n`);
   
-  // Abre o navegador padrão automaticamente no Windows
-  console.log(`[Sistema] Abrindo navegador...`);
-  exec(`start http://localhost:${PORT}`);
+  if (openBrowser) {
+    // Abre o navegador padrão automaticamente no Windows
+    console.log(`[Sistema] Abrindo navegador...`);
+    exec(`start http://localhost:${PORT}`);
+  } else {
+    console.log(`[Sistema] Modo silencioso ativado (--no-browser). Aguardando conexão...`);
+  }
   
   // Inicia o monitoramento
   verificarAtualizacao();
+}).on('error', (e) => {
+  if (e.code === 'EADDRINUSE') {
+    if (openBrowser) {
+      console.log('[Sistema] O servidor já está rodando em segundo plano. Apenas abrindo a aba do navegador...');
+      exec(`start http://localhost:${PORT}`);
+    }
+    setTimeout(() => process.exit(0), 1000);
+  } else {
+    console.error(e);
+  }
 });

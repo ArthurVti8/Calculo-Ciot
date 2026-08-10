@@ -4,7 +4,7 @@
   "main": "server.js",
   "bin": "server.js",
   "scripts": {
-    "build": "caxa --input . --output TabelaCiot_Server.exe --exclude \"TabelaCiot_Server.exe\" \"TabelaCiot.exe\" \"TabelaCiot.rar\" \"*.traineddata\" \"app_js_logs.txt\" \"my_stub.exe\" \"check_sizes.js\" \".git\" \"node_modules/sharp\" \"node_modules/@img\" \"node_modules/jimp\" \"node_modules/rcedit\" \"node_modules/png-to-ico\" \"node_modules/caxa\" \"node_modules/pngjs\" --uncompression-message \"[Motor] Inicializando servidor em segundo plano...\" -- \"{{caxa}}/node_modules/.bin/node\" \"{{caxa}}/server.js\""
+    "build": "caxa --input . --output TabelaCiot_Server.exe --exclude \"TabelaCiot_Server.exe\" \"TabelaCiot.exe\" \"Producao_VTI\" \"*.rar\" \"*.zip\" \"*.bin\" \"*.traineddata\" \"app_js_logs.txt\" \"my_stub.exe\" \"check_sizes.js\" \".git\" \"node_modules/sharp\" \"node_modules/@img\" \"node_modules/jimp\" \"node_modules/rcedit\" \"node_modules/png-to-ico\" \"node_modules/caxa\" \"node_modules/pngjs\" --uncompression-message \"[Motor] Inicializando servidor em segundo plano...\" -- \"{{caxa}}/node_modules/.bin/node\" \"{{caxa}}/server.js\""
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

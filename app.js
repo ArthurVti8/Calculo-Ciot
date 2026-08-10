@@ -588,6 +588,11 @@ async function aplicarAlteracoes() {
     return;
   }
 
+  const btn = document.getElementById('btnApplyChanges');
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Sincronizando...';
+
   TABELAS_PENDING.metadata = {
     resolucao: resMeta,
     dataPublicacao: pubMeta,
@@ -636,6 +641,9 @@ async function aplicarAlteracoes() {
     }
   } catch (e) {
     showToast('Erro ao salvar: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
   }
 }
 
