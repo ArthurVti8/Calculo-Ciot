@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { scrapeResolucao } = require('./scraper');
 const { verificarAtualizacao, getStatus } = require('./monitor');
-require('dotenv').config({ path: path.join(process.cwd(), '.env') });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const sql = require('mssql');
 const { exec } = require('child_process');
@@ -192,7 +192,7 @@ const server = http.createServer(async (req, res) => {
       });
     } catch (e) {
       console.error('[API] Erro ao salvar tabelas:', e.message);
-      sendJSON(res, 500, { erro: 'Erro ao salvar tabelas: ' + e.message });
+      sendJSON(res, 500, { erro: 'Servidor com instabilidades, favor tentar novamente mais tarde! (Ou, se preferir, atualize manualmente).' });
     }
     return;
   }
@@ -336,7 +336,7 @@ const server = http.createServer(async (req, res) => {
       sendJSON(res, 200, resultado);
     } catch (e) {
       console.error('[Monitor] Erro:', e.message);
-      sendJSON(res, 500, { erro: 'Erro ao verificar atualizações: ' + e.message });
+      sendJSON(res, 500, { erro: 'Servidor com instabilidades, favor tentar novamente mais tarde! (Ou, se preferir, atualize manualmente).' });
     }
     return;
   }
@@ -369,7 +369,7 @@ const server = http.createServer(async (req, res) => {
       sendJSON(res, 200, { sucesso: true, tabelas });
     } catch (e) {
       console.error('[Scraper] Erro:', e.message);
-      sendJSON(res, 500, { erro: 'Erro ao extrair tabelas: ' + e.message });
+      sendJSON(res, 500, { erro: 'Servidor com instabilidades, favor tentar novamente mais tarde! (Ou, se preferir, atualize manualmente).' });
     }
     return;
   }
@@ -502,7 +502,11 @@ Não adicione mais nenhum texto na sua resposta além do JSON.
       });
     } catch (e) {
       console.error('[OCR] Erro:', e.message);
-      sendJSON(res, 500, { erro: 'Erro no OCR: ' + e.message });
+      let erroAmigavel = 'Servidor com instabilidades, favor tentar novamente mais tarde! (Ou, se preferir, atualize manualmente).';
+      if (e.message.includes('API key not valid') || e.message.includes('API_KEY_INVALID')) {
+        erroAmigavel = 'Falha de comunicação: Chave de API inválida ou ausente. Por favor, feche o sistema e tente novamente mais tarde, ou atualize manualmente!';
+      }
+      sendJSON(res, 500, { erro: erroAmigavel });
     }
     return;
   }
@@ -668,9 +672,37 @@ server.listen(PORT, () => {
   console.log(`  ╚════════════════════════════════════════════════╝\n`);
   
   if (openBrowser) {
-    // Abre o navegador padrão automaticamente no Windows
-    console.log(`[Sistema] Abrindo navegador...`);
-    exec(`start http://localhost:${PORT}`);
+    console.log(`[Sistema] Tentando abrir em Modo Aplicativo Nativo...`);
+    
+    // Lista dos caminhos mais comuns do Chrome e Edge
+    const progFiles = process.env['PROGRAMFILES'] || 'C:\\Program Files';
+    const progFiles86 = process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)';
+    const localAppData = process.env['LOCALAPPDATA'];
+
+    const browserPaths = [
+      `${progFiles}\\Google\\Chrome\\Application\\chrome.exe`,
+      `${progFiles86}\\Google\\Chrome\\Application\\chrome.exe`,
+      `${localAppData}\\Google\\Chrome\\Application\\chrome.exe`,
+      `${progFiles86}\\Microsoft\\Edge\\Application\\msedge.exe`,
+      `${progFiles}\\Microsoft\\Edge\\Application\\msedge.exe`
+    ];
+
+    let launchedAppMode = false;
+
+    for (let bPath of browserPaths) {
+      if (fs.existsSync(bPath)) {
+        console.log(`[Sistema] Navegador compativel encontrado: ${bPath}`);
+        // Abre especificando o caminho completo e o parâmetro --app
+        exec(`"${bPath}" --app=http://localhost:${PORT}`);
+        launchedAppMode = true;
+        break;
+      }
+    }
+
+    if (!launchedAppMode) {
+      console.log(`[Sistema] Chrome/Edge nao encontrados. Abrindo no navegador padrao...`);
+      exec(`start http://localhost:${PORT}`);
+    }
   } else {
     console.log(`[Sistema] Modo silencioso ativado (--no-browser). Aguardando conexão...`);
   }
@@ -680,11 +712,36 @@ server.listen(PORT, () => {
 }).on('error', (e) => {
   if (e.code === 'EADDRINUSE') {
     if (openBrowser) {
-      console.log('[Sistema] O servidor já está rodando em segundo plano. Apenas abrindo a aba do navegador...');
-      exec(`start http://localhost:${PORT}`);
+      console.log('[Sistema] O servidor já está rodando em segundo plano. Tentando abrir interface...');
+      
+      const progFiles = process.env['PROGRAMFILES'] || 'C:\\Program Files';
+      const progFiles86 = process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)';
+      const localAppData = process.env['LOCALAPPDATA'];
+
+      const browserPaths = [
+        `${progFiles}\\Google\\Chrome\\Application\\chrome.exe`,
+        `${progFiles86}\\Google\\Chrome\\Application\\chrome.exe`,
+        `${localAppData}\\Google\\Chrome\\Application\\chrome.exe`,
+        `${progFiles86}\\Microsoft\\Edge\\Application\\msedge.exe`,
+        `${progFiles}\\Microsoft\\Edge\\Application\\msedge.exe`
+      ];
+
+      let launched = false;
+      for (let bPath of browserPaths) {
+        if (fs.existsSync(bPath)) {
+          exec(`"${bPath}" --app=http://localhost:${PORT}`);
+          launched = true;
+          break;
+        }
+      }
+
+      if (!launched) {
+        exec(`start http://localhost:${PORT}`);
+      }
     }
     setTimeout(() => process.exit(0), 1000);
   } else {
+
     console.error(e);
   }
 });

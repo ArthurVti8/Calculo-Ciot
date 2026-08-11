@@ -18,16 +18,36 @@ async function carregarTabelas() {
   try {
     const resp = await fetch('tabelas_frete.json');
     TABELAS = await resp.json();
+    if (TABELAS && TABELAS.resolucao) {
+      document.getElementById('mainSubtitle').textContent = 'Resolução ' + TABELAS.resolucao;
+      document.title = 'Calculadora de Frete Mínimo - Resolução ' + TABELAS.resolucao;
+    }
   } catch (e) {
     console.error('Erro ao carregar tabelas:', e);
     alert('Erro ao carregar tabelas_frete.json. Verifique se o arquivo está na mesma pasta.');
   }
 }
 
+function atualizarSubtitulo() {
+  if (TABELAS && TABELAS.resolucao) {
+    document.getElementById('mainSubtitle').textContent = 'Resolução ' + TABELAS.resolucao;
+    document.title = 'Calculadora de Frete Mínimo - Resolução ' + TABELAS.resolucao;
+  }
+}
+
 function setupEventListeners() {
   // Calculator
   document.getElementById('btnCalcular').addEventListener('click', calcular);
-  document.getElementById('selTipoOperacao').addEventListener('change', calcular);
+  document.getElementById('chkComposicao').addEventListener('change', () => {
+    document.getElementById('lblComposicao').textContent =
+      document.getElementById('chkComposicao').checked ? 'Sim' : 'Não';
+    calcular();
+  });
+  document.getElementById('chkRetornoVazio').addEventListener('change', () => {
+    document.getElementById('lblRetornoVazio').textContent =
+      document.getElementById('chkRetornoVazio').checked ? 'Sim' : 'Não';
+    calcular();
+  });
   document.getElementById('chkAltoDesempenho').addEventListener('change', () => {
     document.getElementById('lblAltoDesempenho').textContent =
       document.getElementById('chkAltoDesempenho').checked ? 'Sim' : 'Não';
@@ -599,6 +619,16 @@ async function aplicarAlteracoes() {
     inicioVigencia: vigMeta
   };
 
+  // Atualiza o subtítulo formatado no formato "Resolução ANTT nº XXXX/XXXX — XX de XXXXX de XXXX"
+  const dateParts = pubMeta.split('-');
+  if (dateParts.length === 3) {
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    const nomeMes = meses[parseInt(dateParts[1], 10) - 1];
+    TABELAS_PENDING.resolucao = `ANTT nº ${resMeta} — ${dateParts[2]} de ${nomeMes} de ${dateParts[0]}`;
+  } else {
+    TABELAS_PENDING.resolucao = `ANTT nº ${resMeta}`;
+  }
+
   try {
     // 1. Salvar localmente
     const resp = await fetch('/api/salvar-tabelas', {
@@ -633,6 +663,7 @@ async function aplicarAlteracoes() {
       const activeTab = document.querySelector('#tabBar .tab.active')?.dataset.tab || 'A';
       renderTable(activeTab);
       calcular();
+      atualizarSubtitulo();
 
       closeUpdateModal();
       showToast(`Tabelas sincronizadas no ERP Delphi e salvas localmente!`);
@@ -649,13 +680,13 @@ async function aplicarAlteracoes() {
 
 // ===== CALCULATOR =====
 function getSelectedTable() {
-  const tipo = document.getElementById('selTipoOperacao').value;
+  const composicao = document.getElementById('chkComposicao').checked;
   const alto = document.getElementById('chkAltoDesempenho').checked;
 
-  if (tipo === 'lotacao' && !alto) return 'A';
-  if (tipo === 'veiculo' && !alto) return 'B';
-  if (tipo === 'lotacao' && alto) return 'C';
-  if (tipo === 'veiculo' && alto) return 'D';
+  if (composicao && !alto) return 'A';
+  if (!composicao && !alto) return 'B';
+  if (composicao && alto) return 'C';
+  if (!composicao && alto) return 'D';
   return 'A';
 }
 
@@ -699,7 +730,12 @@ function calcular() {
     return;
   }
 
-  const total = (ccd * distancia) + cc;
+  let ida = (ccd * distancia) + cc;
+  let retornoVazio = 0;
+  if (document.getElementById('chkRetornoVazio').checked) {
+    retornoVazio = 0.92 * distancia * ccd;
+  }
+  let total = ida + retornoVazio;
 
   document.getElementById('resultCCD').textContent = formatCurrency(ccd, 4);
   document.getElementById('resultCC').textContent = formatCurrency(cc);
@@ -771,7 +807,7 @@ function renderTable(tabelaKey) {
     html += `<tr class="row-ccd">`;
     html += `<td rowspan="2">${tipo.id}</td>`;
     html += `<td rowspan="2">${tipo.nome}</td>`;
-    html += `<td>R$/km</td>`;
+    html += `<td>R$/km <span style="font-size: 0.85em; opacity: 0.6; font-weight: normal;">(CCD)</span></td>`;
     dados.CCD.forEach(v => {
       if (v === null) {
         html += `<td class="cell-empty">—</td>`;
@@ -783,7 +819,7 @@ function renderTable(tabelaKey) {
 
     // CC row
     html += `<tr class="row-cc">`;
-    html += `<td>R$</td>`;
+    html += `<td>R$ <span style="font-size: 0.85em; opacity: 0.6; font-weight: normal;">(CC)</span></td>`;
     dados.CC.forEach(v => {
       if (v === null) {
         html += `<td class="cell-empty">—</td>`;

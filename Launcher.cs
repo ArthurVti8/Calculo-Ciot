@@ -22,8 +22,30 @@ class Program
                 var task = client.GetAsync("http://127.0.0.1:3001/");
                 task.Wait();
                 if (task.Result.IsSuccessStatusCode) {
-                    // Servidor já está rodando! Só abre o navegador e sai.
-                    Process.Start("http://localhost:3001");
+                    // Servidor já está rodando! Tenta abrir como app nativo.
+                    string progFiles = Environment.GetEnvironmentVariable("PROGRAMFILES");
+                    string progFiles86 = Environment.GetEnvironmentVariable("PROGRAMFILES(X86)");
+                    string localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+                    
+                    string[] browserPaths = new string[] {
+                        progFiles + @"\Google\Chrome\Application\chrome.exe",
+                        progFiles86 + @"\Google\Chrome\Application\chrome.exe",
+                        localAppData + @"\Google\Chrome\Application\chrome.exe",
+                        progFiles86 + @"\Microsoft\Edge\Application\msedge.exe",
+                        progFiles + @"\Microsoft\Edge\Application\msedge.exe"
+                    };
+                    
+                    bool launched = false;
+                    foreach (string bPath in browserPaths) {
+                        if (File.Exists(bPath)) {
+                            Process.Start(bPath, "--app=http://localhost:3001");
+                            launched = true;
+                            break;
+                        }
+                    }
+                    if (!launched) {
+                        Process.Start("http://localhost:3001");
+                    }
                     return;
                 }
             }
@@ -83,11 +105,11 @@ class SplashForm : Form
 
         // Título Principal
         Label titleLabel = new Label();
-        titleLabel.Text = "Tabela CIOT";
+        titleLabel.Text = "TABELA CIOT";
         titleLabel.Font = new Font("Segoe UI", 16, FontStyle.Bold);
         titleLabel.ForeColor = Color.White;
         titleLabel.AutoSize = true;
-        titleLabel.Location = new Point(100, 40);
+        titleLabel.Location = new Point(105, 42);
         this.Controls.Add(titleLabel);
 
         // Label de Status (Carregando...)
@@ -96,21 +118,22 @@ class SplashForm : Form
         statusLabel.Font = new Font("Segoe UI", 10, FontStyle.Regular);
         statusLabel.ForeColor = Color.WhiteSmoke;
         statusLabel.AutoSize = true;
-        statusLabel.Location = new Point(100, 75);
+        statusLabel.Location = new Point(105, 78);
         this.Controls.Add(statusLabel);
         
-        // Carrega a imagem HD (icon.png) da mesma pasta do executável
-        string appDir = AppDomain.CurrentDomain.BaseDirectory;
-        string iconPngPath = Path.Combine(appDir, "icon.png");
-        
-        if (File.Exists(iconPngPath)) {
-            PictureBox pb = new PictureBox();
-            pb.Image = Image.FromFile(iconPngPath);
-            pb.SizeMode = PictureBoxSizeMode.Zoom;
-            pb.Size = new Size(60, 60);
-            pb.Location = new Point(25, 45);
-            this.Controls.Add(pb);
-        }
+        // Carrega a imagem HD (icon.png) embutida direto no EXE!
+        try {
+            System.IO.Stream s = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream("IconRes");
+            if (s != null) {
+                PictureBox pb = new PictureBox();
+                pb.Image = Image.FromStream(s);
+                pb.SizeMode = PictureBoxSizeMode.Zoom;
+                pb.Size = new Size(70, 70);
+                pb.Location = new Point(20, 40);
+                this.Controls.Add(pb);
+            }
+        } catch {}
+
 
         // Timer de monitoramento (ping a cada 1 seg)
         pingTimer = new Timer();

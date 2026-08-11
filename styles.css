@@ -1333,3 +1333,4 @@ select option {
 .diff-row-new .grid-input { color: var(--success); font-weight: 700; }
 
 @media (max-width: 768px) { .calc-btn-container .btn { width: 100%; } }
+.calc-grid-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 18px; }

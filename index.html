@@ -21,7 +21,7 @@
         </div>
         <div>
           <h1>Calculadora de Frete Mínimo</h1>
-          <p class="subtitle">Resolução ANTT nº 6.084 — 16 de Julho de 2026</p>
+          <p class="subtitle" id="mainSubtitle">Resolução ANTT nº 6.084 — 16 de Julho de 2026</p>
         </div>
       </div>
       <div class="header-actions">
@@ -59,26 +59,7 @@
         </h2>
       </div>
 
-      <div class="calc-grid">
-        <div class="form-group">
-          <label for="selTipoOperacao">Tipo de Operação</label>
-          <select id="selTipoOperacao">
-            <option value="lotacao">Carga Lotação</option>
-            <option value="veiculo">Contratação apenas do Veículo</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="chkAltoDesempenho">Alto Desempenho</label>
-          <div class="toggle-wrapper">
-            <label class="toggle">
-              <input type="checkbox" id="chkAltoDesempenho">
-              <span class="toggle-slider"></span>
-            </label>
-            <span id="lblAltoDesempenho" class="toggle-label">Não</span>
-          </div>
-        </div>
-
+      <div class="calc-grid-row">
         <div class="form-group">
           <label for="selTipoCarga">Tipo de Carga</label>
           <select id="selTipoCarga">
@@ -117,9 +98,47 @@
             <span class="unit">km</span>
           </div>
         </div>
+      </div>
 
-        <div class="form-group calc-btn-container">
-          <button id="btnCalcular" class="btn btn-primary">
+      <div class="calc-grid-row" style="align-items: flex-end;">
+        <div class="form-group">
+          <label for="chkComposicao">
+            É composição veicular?
+            <span style="font-size: 0.75em; display: block; opacity: 0.7; font-weight: 400; margin-top: 2px;">(veículo automotor + implemento ou caminhão simples)</span>
+          </label>
+          <div class="toggle-wrapper">
+            <label class="toggle">
+              <input type="checkbox" id="chkComposicao">
+              <span class="toggle-slider"></span>
+            </label>
+            <span id="lblComposicao" class="toggle-label">Não</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="chkAltoDesempenho">É Alto Desempenho?</label>
+          <div class="toggle-wrapper">
+            <label class="toggle">
+              <input type="checkbox" id="chkAltoDesempenho">
+              <span class="toggle-slider"></span>
+            </label>
+            <span id="lblAltoDesempenho" class="toggle-label">Não</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="chkRetornoVazio">Retorno Vazio?</label>
+          <div class="toggle-wrapper">
+            <label class="toggle">
+              <input type="checkbox" id="chkRetornoVazio">
+              <span class="toggle-slider"></span>
+            </label>
+            <span id="lblRetornoVazio" class="toggle-label">Não</span>
+          </div>
+        </div>
+
+        <div class="form-group calc-btn-container" style="margin-bottom: 2px;">
+          <button id="btnCalcular" class="btn btn-primary" style="height: 48px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
               <circle cx="12" cy="12" r="10"/><path d="M12 6v12"/><path d="M6 12h12"/>
             </svg>
@@ -405,7 +424,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
               <polyline points="20,6 9,17 4,12"/>
             </svg>
-            Sincronizar ANTT c/ ERP (SQL Server)
+            Sincronizar ANTT c/ ERP
           </button>
           <button id="btnCancelChanges" class="btn btn-outline">Cancelar</button>
         </div>
