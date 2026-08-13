@@ -162,7 +162,7 @@ class SplashForm : Form
                 if (response.IsSuccessStatusCode)
                 {
                     pingTimer.Stop();
-                    this.Close();
+                    Environment.Exit(0); // Força a liberação da memória imediatamente, não agrupando os processos
                 }
             }
         }

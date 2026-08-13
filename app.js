@@ -940,6 +940,7 @@ function showToast(message) {
 
 // AUTO-SHUTDOWN HEARTBEAT
 setInterval(() => {
+  if (document.hidden) return; // Se a janela foi fechada mas o Chrome manteve em background, corta o pulso!
   fetch('/api/heartbeat').catch(err => console.log('Server ping failed'));
 }, 3000);
 
