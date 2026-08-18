@@ -166,6 +166,39 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET /api/config - Retorna o nome do banco
+  if (url.pathname === '/api/config' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ dbName: process.env.DB_NAME || '' }));
+    return;
+  }
+
+  // POST /api/set-udl - Atualiza as credenciais de banco na memória
+  if (url.pathname === '/api/set-udl' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      const udlPath = body.trim();
+      if (fs.existsSync(udlPath)) {
+        const buffer = fs.readFileSync(udlPath);
+        const content = buffer.toString('utf16le').replace(/\0/g, ''); 
+        const creds = {};
+        content.split(';').forEach(p => {
+          const [k, v] = p.split('=');
+          if (k && v) creds[k.trim().toLowerCase()] = v.trim();
+        });
+        if (creds['data source']) process.env.DB_SERVER = creds['data source'];
+        if (creds['initial catalog']) process.env.DB_NAME = creds['initial catalog'];
+        if (creds['user id']) process.env.DB_USER = creds['user id'];
+        if (creds['password']) process.env.DB_PASSWORD = creds['password'];
+        console.log(`[UDL-HotSwap] Conectando em: ${process.env.DB_SERVER} -> ${process.env.DB_NAME}`);
+      }
+      sendJSON(res, 200, { sucesso: true, dbName: process.env.DB_NAME });
+    } catch(e) {
+      sendJSON(res, 500, { sucesso: false, erro: e.message });
+    }
+    return;
+  }
+
   // POST /api/salvar-tabelas — Salva tabelas atualizadas
   if (url.pathname === '/api/salvar-tabelas' && req.method === 'POST') {
     try {
@@ -225,7 +258,6 @@ const server = http.createServer(async (req, res) => {
             [NR_RESOLUCAO] [varchar](20) NULL,
             [DATA_PUBLICACAO] [datetime] NULL,
             [INICIO_VIGENCIA] [datetime] NULL,
-            [FIM_VIGENCIA] [datetime] NULL,
             CONSTRAINT [PK_FA_CIOT_TABELA_CADASTRO] PRIMARY KEY CLUSTERED ([ID_TABELA] ASC)
         );
 
@@ -270,8 +302,7 @@ const server = http.createServer(async (req, res) => {
                  SET DESCRICAO = 'Tabela ANTT ${tk} - Resolucao ${resolucaoAtual}',
                      NR_RESOLUCAO = '${resolucaoAtual}',
                      DATA_PUBLICACAO = @NewDataPublicacao,
-                     INICIO_VIGENCIA = @NewInicioVigencia,
-                     FIM_VIGENCIA = NULL 
+                     INICIO_VIGENCIA = @NewInicioVigencia
                  WHERE ID_TABELA = @IdTabela;
 
                  -- Apagar os coeficientes antigos para re-inserir os atualizados
@@ -281,9 +312,9 @@ const server = http.createServer(async (req, res) => {
              BEGIN
                  -- INSERIR A PRIMEIRA VEZ
                  INSERT INTO [dbo].[FA_CIOT_TABELA_CADASTRO] 
-                 (DESCRICAO, TIPO_TABELA, NR_RESOLUCAO, DATA_PUBLICACAO, INICIO_VIGENCIA, FIM_VIGENCIA)
+                 (DESCRICAO, TIPO_TABELA, NR_RESOLUCAO, DATA_PUBLICACAO, INICIO_VIGENCIA)
                  VALUES 
-                 ('Tabela ANTT ${tk} - Resolucao ${resolucaoAtual}', '${tk}', '${resolucaoAtual}', @NewDataPublicacao, @NewInicioVigencia, NULL);
+                 ('Tabela ANTT ${tk} - Resolucao ${resolucaoAtual}', '${tk}', '${resolucaoAtual}', @NewDataPublicacao, @NewInicioVigencia);
 
                  SET @IdTabela = SCOPE_IDENTITY();
              END

@@ -22,7 +22,15 @@ class Program
                 var task = client.GetAsync("http://127.0.0.1:3001/");
                 task.Wait();
                 if (task.Result.IsSuccessStatusCode) {
-                    // Servidor já está rodando! Tenta abrir como app nativo.
+                    // Servidor já está rodando! Avisa ele caso o banco (UDL) tenha mudado.
+                    if (args.Length > 0 && args[0].ToLower().EndsWith(".udl")) {
+                        try {
+                            StringContent content = new StringContent(Path.GetFullPath(args[0]));
+                            client.PostAsync("http://127.0.0.1:3001/api/set-udl", content).Wait();
+                        } catch {}
+                    }
+
+                    // Tenta abrir como app nativo.
                     string progFiles = Environment.GetEnvironmentVariable("PROGRAMFILES");
                     string progFiles86 = Environment.GetEnvironmentVariable("PROGRAMFILES(X86)");
                     string localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");

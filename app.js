@@ -8,6 +8,15 @@ let TABELAS_PENDING = null;  // Tabelas pendentes de aprovação
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', async () => {
+  // Fetch DB Config for Title
+  try {
+    const cfgRes = await fetch('/api/config');
+    const cfg = await cfgRes.json();
+    if (cfg.dbName) {
+      document.title = `Calculadora de Frete Mínimo [${cfg.dbName}] - Resolução ANTT`;
+    }
+  } catch (e) { }
+
   await carregarTabelas();
   setupEventListeners();
   setupUpdateListeners();
@@ -20,7 +29,10 @@ async function carregarTabelas() {
     TABELAS = await resp.json();
     if (TABELAS && TABELAS.resolucao) {
       document.getElementById('mainSubtitle').textContent = 'Resolução ' + TABELAS.resolucao;
-      document.title = 'Calculadora de Frete Mínimo - Resolução ' + TABELAS.resolucao;
+      // Não sobrescreve o título completo se tiver banco configurado, apenas adiciona
+      if (!document.title.includes('[')) {
+        document.title = 'Calculadora de Frete Mínimo - Resolução ' + TABELAS.resolucao;
+      }
     }
   } catch (e) {
     console.error('Erro ao carregar tabelas:', e);
@@ -31,7 +43,9 @@ async function carregarTabelas() {
 function atualizarSubtitulo() {
   if (TABELAS && TABELAS.resolucao) {
     document.getElementById('mainSubtitle').textContent = 'Resolução ' + TABELAS.resolucao;
-    document.title = 'Calculadora de Frete Mínimo - Resolução ' + TABELAS.resolucao;
+    if (!document.title.includes('[')) {
+      document.title = 'Calculadora de Frete Mínimo - Resolução ' + TABELAS.resolucao;
+    }
   }
 }
 
@@ -639,6 +653,7 @@ async function aplicarAlteracoes() {
     const data = await resp.json();
 
     if (data.sucesso) {
+      let erroSql = false;
       // 2. Sincronizar com ERP Delphi (SQL Server)
       try {
         const syncResp = await fetch('/api/sync-sqlserver', {
@@ -648,11 +663,14 @@ async function aplicarAlteracoes() {
         });
         const syncData = await syncResp.json();
         if(!syncData.sucesso) {
+           erroSql = true;
            console.error('Aviso: Erro ao sincronizar SQL:', syncData.erro);
-           showToast(`Salvo local. Porém falhou ao enviar pro ERP: ${syncData.erro}`);
+           showToast(`Erro no banco: ${syncData.erro}`);
         }
       } catch(e) {
+        erroSql = true;
         console.error('Falha de rede ao sincronizar SQL:', e);
+        showToast(`Erro de rede ao conectar com o banco local.`);
       }
 
       TABELAS = TABELAS_PENDING;
@@ -666,7 +684,9 @@ async function aplicarAlteracoes() {
       atualizarSubtitulo();
 
       closeUpdateModal();
-      showToast(`Tabelas sincronizadas no ERP Delphi e salvas localmente!`);
+      if (!erroSql) {
+        showToast(`Tabelas sincronizadas no ERP Delphi e salvas localmente!`);
+      }
     } else {
       showToast('Erro: ' + (data.erro || 'Falha desconhecida'));
     }
