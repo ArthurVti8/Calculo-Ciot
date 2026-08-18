@@ -714,15 +714,61 @@ function calcular() {
     return;
   }
 
-  const ccd = dados.CCD[idx];
-  const cc = dados.CC[idx];
+  let ccd = dados.CCD[idx];
+  let cc = dados.CC[idx];
+  let fallbackUsado = false;
+  let eixosUsados = eixos;
+
+  if (ccd === null || cc === null) {
+    // Tenta encontrar o imediatamente inferior
+    let encontrado = false;
+    let fallbackEixos = -1;
+    let fallbackIdx = -1;
+    
+    const todasOpcoes = [2, 3, 4, 5, 6, 7, 9];
+    
+    // Procurar imediatamente inferior
+    for (let i = todasOpcoes.length - 1; i >= 0; i--) {
+      if (todasOpcoes[i] < eixos) {
+        let iIdx = getEixosIndex(todasOpcoes[i]);
+        if (dados.CCD[iIdx] !== null && dados.CC[iIdx] !== null) {
+           fallbackIdx = iIdx;
+           fallbackEixos = todasOpcoes[i];
+           encontrado = true;
+           break;
+        }
+      }
+    }
+    
+    // Se não achou inferior, procurar o imediatamente superior
+    if (!encontrado) {
+       for (let i = 0; i < todasOpcoes.length; i++) {
+         if (todasOpcoes[i] > eixos) {
+           let iIdx = getEixosIndex(todasOpcoes[i]);
+           if (dados.CCD[iIdx] !== null && dados.CC[iIdx] !== null) {
+             fallbackIdx = iIdx;
+             fallbackEixos = todasOpcoes[i];
+             encontrado = true;
+             break;
+           }
+         }
+       }
+    }
+
+    if (encontrado) {
+      ccd = dados.CCD[fallbackIdx];
+      cc = dados.CC[fallbackIdx];
+      eixosUsados = fallbackEixos;
+      fallbackUsado = true;
+    }
+  }
 
   if (ccd === null || cc === null) {
     document.getElementById('resultCCD').textContent = '—';
     document.getElementById('resultCC').textContent = '—';
     document.getElementById('resultTotal').textContent = 'N/D';
     document.getElementById('resultFormula').innerHTML =
-      '<strong>⚠ Combinação não disponível:</strong> Não existem coeficientes para ' +
+      '<strong style="color:var(--danger)">⚠ Combinação não disponível:</strong> Não existem coeficientes para ' +
       eixos + ' eixos com esse tipo de carga na ' + tabela.descricao + '.';
     document.getElementById('resultTabela').textContent = 'TABELA ' + tabelaKey;
     document.getElementById('resultDescricao').textContent = tabela.descricao;
@@ -745,11 +791,17 @@ function calcular() {
   document.getElementById('resultDescricao').textContent = tabela.descricao;
 
   const tipoCargaNome = TABELAS.tiposCarga.find(t => t.id == tipoCarga)?.nome || '';
-  document.getElementById('resultFormula').innerHTML =
-    `<strong>Frete Mínimo</strong> = (CCD × Distância) + CC\n` +
+  let formulaHtml = '';
+  if (fallbackUsado) {
+    formulaHtml += `<strong style="color:#d97706;">⚠ Atenção:</strong> Não existem coeficientes para ${eixos} eixos com esse tipo de carga na ${tabela.descricao}. O cálculo foi realizado utilizando os valores referentes a ${eixosUsados} eixos, conforme regra da ANTT.<br><br>`;
+  }
+
+  formulaHtml += `<strong>Frete Mínimo</strong> = (CCD × Distância) + CC\n` +
     `<strong>Frete Mínimo</strong> = (${formatNum(ccd, 4)} × ${formatNum(distancia, 1)} km) + ${formatCurrency(cc)}\n` +
     `<strong>Frete Mínimo</strong> = ${formatCurrency(ccd * distancia)} + ${formatCurrency(cc)} = <strong>${formatCurrency(total)}</strong>\n\n` +
     `Tabela ${tabelaKey} | ${tipoCargaNome} | ${eixos} eixos | ${formatNum(distancia, 1)} km`;
+
+  document.getElementById('resultFormula').innerHTML = formulaHtml;
 
   resultPanel.classList.remove('hidden');
 
