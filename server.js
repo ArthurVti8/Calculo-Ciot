@@ -417,12 +417,18 @@ const server = http.createServer(async (req, res) => {
 
       console.log(`[OCR] Processando imagem para Tabela ${tableId || '?'}...`);
 
-      // Decodificar base64
-      const base64Data = image.replace(/^data:image\/\w+;base64,/, '').replace(/^data:application\/pdf;base64,/, '');
+      // Extrair o mimeType do prefixo base64
+      let mimeType = 'image/png';
+      if (image.startsWith('data:application/pdf')) mimeType = 'application/pdf';
+      else if (image.startsWith('data:image/jpeg')) mimeType = 'image/jpeg';
+      else if (image.startsWith('data:image/webp')) mimeType = 'image/webp';
+      else if (image.startsWith('data:image/heic')) mimeType = 'image/heic';
+      
+      const base64Data = image.replace(/^data:.*?base64,/, '');
       const imgBuffer = Buffer.from(base64Data, 'base64');
 
       // Salvar temporariamente
-      const tmpFile = path.join(process.cwd(), '_ocr_temp.png');
+      const tmpFile = path.join(process.cwd(), '_ocr_temp_file');
       fs.writeFileSync(tmpFile, imgBuffer);
 
       console.log(`[OCR] Imagem salva. Iniciando Gemini Vision AI...`);
@@ -455,7 +461,7 @@ Não adicione mais nenhum texto na sua resposta além do JSON.
         {
           inlineData: {
             data: base64Data,
-            mimeType: "image/png"
+            mimeType: mimeType
           }
         },
       ];
@@ -463,8 +469,9 @@ Não adicione mais nenhum texto na sua resposta além do JSON.
       // Sistema de Fallback Profissional para os modelos da IA
       const modelNamesToTry = [
         "gemini-flash-latest",
-        "gemini-1.5-flash",
-        "gemini-1.0-pro-vision-latest"
+        "gemini-3.5-flash",
+        "gemini-3.7-flash",
+        "gemini-2.5-flash"
       ];
 
       let text = null;
